@@ -18,6 +18,7 @@ const config = {
     type: Phaser.AUTO,
     width: WINDOW_WIDTH,
     height: WINDOW_WIDTH,
+    pixelArt: true,
     physics: {
         default: 'arcade',
         arcade: {
@@ -33,21 +34,32 @@ const config = {
 }
 
 function ResetBall() {
+    ball.setAlpha(1);
     ball.setPosition(WINDOW_WIDTH/2, WINDOW_HEIGHT/2);
     let randomNumForDirection = Phaser.Math.Between(1, 100);
     if (randomNumForDirection > 50) {
-        ball.setVelocityX(Phaser.Math.Between(200, 250));
-        ball.setVelocityY(Phaser.Math.Between(150, 250));
+        ball.setVelocityX(Phaser.Math.Between(120, 350));
+        ball.setVelocityY(Phaser.Math.Between(120, 350));
     } else {
-        ball.setVelocityX(Phaser.Math.Between(-250, -200));
-        ball.setVelocityY(Phaser.Math.Between(-250, -150));
+        ball.setVelocityX(Phaser.Math.Between(-350, -120));
+        ball.setVelocityY(Phaser.Math.Between(-350, -120));
     }
 }
 
-function DeflectBall() {
-    ball.setVelocityX(-ball.body.velocity.x);
-    console.log(ball);
+function BounceBall(player, ball) {
+    //player ball bounce sound
+    let randomNumForSound = Phaser.Math.Between(1, 100);
+    if (randomNumForSound > 75) {
+        this.sound.play('high');
+    } else if (randomNumForSound > 50) {
+        this.sound.play('higher');
+    } else if (randomNumForSound > 25) {
+        this.sound.play('med');
+    } else {
+        this.sound.play('low');
+    }
 }
+
 
 const game = new Phaser.Game(config);
 
@@ -58,11 +70,17 @@ function preload() {
     this.load.image('paddletwo', './res/img/paddletwo.png');
     this.load.image('ball', './res/img/ball.png');
 
-    cursors = this.input.keyboard.createCursorKeys();
+
+    this.load.audio('high', './res/sounds/highboop.wav');
+    this.load.audio('higher', './res/sounds/higherboop.wav');
+    this.load.audio('low', './res/sounds/lowboop.wav');
+    this.load.audio('med', './res/sounds/medboop.wav');
 }
 function create() {
     sky = this.add.image(WINDOW_WIDTH/2, WINDOW_HEIGHT/2, 'sky');
     sky.setScale(1.1);
+
+    cursors = this.input.keyboard.createCursorKeys();
 
     player1 = this.physics.add.sprite(WINDOW_WIDTH/SEP_RATIO, WINDOW_HEIGHT/2, 'paddle').setImmovable();
     player2 = this.physics.add.sprite((WINDOW_WIDTH/SEP_RATIO)*(SEP_RATIO-1), WINDOW_HEIGHT/2, 'paddletwo').setImmovable();
@@ -77,12 +95,13 @@ function create() {
     
     this.physics.add.collider(player1, ball);
     this.physics.add.collider(player2, ball);
-    // this.physics.add.collider(player1, ball, DeflectBall);
-    // this.physics.add.collider(player2, ball, DeflectBall);
+
+    this.physics.add.overlap(player1, ball, BounceBall, null, this);
     ResetBall();
 
     //UI
     scoreText = this.add.text(WINDOW_WIDTH/2-50, 16, p1Score + ' - ' + p2Score, { fontSize: '44px', fill: '#fff' });
+    winText = this.add.text(150, WINDOW_HEIGHT/2-50, '', { fontSize: '60px', fill: '#fff' });
 
 
     const rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -141,8 +160,24 @@ function ResetPlayerPositions() {
 function ResetGame() {
     p1Score = 0;
     p2Score = 0;
+    ResetText();
     ResetPlayerPositions();
     ResetBall();
+}
+
+function ResetText() {
+    winText.setText('');
+}
+
+// SUMMARY: Called when a player reaches 5 points, 
+//stops the ball and players, 
+//and makes the ball less visible
+function ScoreLimitReached() {
+    ball.setAlpha(0.5);
+    ball.setVelocityX(0);
+    ball.setVelocityY(0);
+    player1.setVelocityY(0);
+    player2.setVelocityY(0);
 }
 
 function update() {
@@ -152,18 +187,18 @@ function update() {
     checkBallPositionForScore(ball.body.position);
 
     if(p1Score >= 5 || p2Score >= 5) {
+        ScoreLimitReached();
         if (p1Score > p2Score) {
-            winText = this.add.text(150, WINDOW_HEIGHT/2-50, 'Player 1 Wins!', { fontSize: '60px', fill: '#fff' });
+            winText.setText('Player 1 Wins!');
         } else {
-            winText = this.add.text(150, WINDOW_HEIGHT/2-50, 'Player 2 Wins!', { fontSize: '60px', fill: '#fff' });
+            winText.setText('Player 2 Wins!');
         }
-        this.input.keyboard.on('keydown', (event) => {
-            //check for spacebar to reset game
-            if (event.keyCode === 32) {
-                ResetGame();
-            }
-        });
     }
-
+    this.input.keyboard.on('keydown', (event) => {
+        //check for spacebar to reset game
+        if (event.keyCode === 32) {
+            ResetGame();
+        }
+    });
     scoreText.setText(p1Score + ' - ' + p2Score);
 }
